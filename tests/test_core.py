@@ -69,6 +69,15 @@ class VMTests(unittest.TestCase):
         r=evaluate(p,p,'demo',bytes(32),1)
         self.assertEqual(r['gpt_score_0_100'],50.0)
         self.assertEqual(r['gpt_advantage_raw'],0)
+    def test_role_blind_programs_always_draw(self):
+        a=assemble_file(ROOT/'examples'/'sweep.asm')
+        b=assemble_file(ROOT/'examples'/'idle.asm')
+        seed=bytes(range(32))
+        for rd in (1,4,12):
+            result=evaluate(a,b,'demo',seed,rd)
+            self.assertEqual(result['gpt_score_0_100'],50.0)
+            self.assertEqual(result['gpt_advantage_raw'],0)
+
     def test_role_swap(self):
         a=assemble_file(ROOT/'examples'/'local.asm')
         b=assemble_file(ROOT/'examples'/'sweep.asm')
