@@ -1,8 +1,8 @@
 {
-  "completed_rounds": 2,
+  "completed_rounds": 3,
   "game_id": "game-001",
-  "overall_claude_score": 50.9826,
-  "overall_gpt_score": 49.0174,
+  "overall_claude_score": 51.5676,
+  "overall_gpt_score": 48.4324,
   "rounds": [
     {
       "claude_attacker_total": 16600,
@@ -21,6 +21,15 @@
       "round": 2,
       "running_claude_mean": 50.9826,
       "running_gpt_mean": 49.0174
+    },
+    {
+      "claude_attacker_total": 17294,
+      "claude_score": 52.7374,
+      "gpt_attacker_total": 15500,
+      "gpt_score": 47.2626,
+      "round": 3,
+      "running_claude_mean": 51.5676,
+      "running_gpt_mean": 48.4324
     }
   ],
   "scheduled_rounds": 3,
