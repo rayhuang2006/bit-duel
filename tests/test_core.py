@@ -1,0 +1,110 @@
+import base64
+import hashlib
+import json
+import random
+import tempfile
+import unittest
+from pathlib import Path
+
+from bitduel.asm import assemble, assemble_file
+from bitduel.model import evolve, objective, rot, initial_state, evaluate
+from bitduel.vm import decode, execute, VMError
+from bitduel.sealed import create_keys, make_payload, seal, open_sealed, load_program, to_issue_comment
+from bitduel.referee import ingest_event, reconcile, read_json, verify_final_reveal
+
+ROOT = Path(__file__).resolve().parents[1]
+
+class MathTests(unittest.TestCase):
+    def test_period_64(self):
+        for x in [0,1,(1<<64)-1,0xdeadbeefcafebabe]:
+            state=x
+            for _ in range(64):state=evolve(state,0,0)
+            self.assertEqual(state,x)
+    def test_linearity(self):
+        rng=random.Random(15)
+        for _ in range(100):
+            x=rng.getrandbits(64);y=rng.getrandbits(64)
+            self.assertEqual(evolve(x^y,0,0),evolve(x,0,0)^evolve(y,0,0))
+    def test_score_even_shift_invariance(self):
+        for x in [0, 1, 0xaaaaaaaaaaaaaaaa, 0xdeadbeefcafebabe]:
+            self.assertEqual(objective(x)%2,0)
+            self.assertEqual(objective(x),objective(rot(x,13)))
+            self.assertEqual(objective(x),objective(x^((1<<64)-1)))
+
+class VMTests(unittest.TestCase):
+    def test_assembler_programs(self):
+        for name in ('local','sweep','idle'):
+            program=assemble_file(ROOT/'examples'/f'{name}.asm')
+            self.assertLessEqual(len(program),128)
+            decode(program)
+            for role in (0,1):
+                for step in (0,1,5,31,63):
+                    for y in (0,1,0xffffffff,0x12345678):
+                        a,m=execute(program,y,step,role)
+                        self.assertLessEqual(a.bit_count(),4)
+    def test_memory_state(self):
+        program=assemble('LI8 r5, 1\nADD r1, r5\nMOV r0, r1\nLOW4 r0\nHALT')
+        self.assertEqual(execute(program,0,0,0,0),(1,1))
+        self.assertEqual(execute(program,0,1,0,1),(2,2))
+    def test_invalid_output(self):
+        bad=assemble('LI64 r0, 0xffffffffffffffff\nHALT')
+        with self.assertRaises(VMError): execute(bad,0,0,0)
+    def test_invalid_jump(self):
+        with self.assertRaises(VMError):assemble('JMP missing\nHALT')
+    def test_infinite_loop_budget(self):
+        infinite=assemble('loop:\nJMP loop\nHALT')
+        with self.assertRaises(VMError):execute(infinite,0,0,0)
+    def test_equal_programs_draw(self):
+        p=assemble_file(ROOT/'examples'/'local.asm')
+        r=evaluate(p,p,'demo',bytes(32))
+        self.assertEqual(r['gpt_score_0_100'],50.0)
+        self.assertEqual(r['gpt_advantage_raw'],0)
+    def test_role_swap(self):
+        a=assemble_file(ROOT/'examples'/'local.asm')
+        b=assemble_file(ROOT/'examples'/'sweep.asm')
+        seed=bytes(range(32))
+        one=evaluate(a,b,'demo',seed)
+        two=evaluate(b,a,'demo',seed)
+        self.assertEqual(one['gpt_score_0_100']+two['gpt_score_0_100'],100)
+
+class SealingTests(unittest.TestCase):
+    def test_sealed_roundtrip(self):
+        pub,private=create_keys()
+        p=assemble('HALT')
+        payload=make_payload('game-001',1,'gpt',p,'Hello hypotheses')
+        env=seal(payload,pub)
+        self.assertEqual(open_sealed(env,private),payload)
+        self.assertEqual(load_program(payload),p)
+        env['sha256']='0'*64
+        with self.assertRaises(Exception):open_sealed(env,private)
+
+    def test_issue_ingestion_and_reveal(self):
+        pub,private=create_keys()
+        seed=bytes(range(32))
+        cfg={'game_id':'game-001','rounds':2,'submission_issue':7,
+             'allowed_submitters':{'gpt':['author'],'claude':['author']},
+             'seed_sha256':hashlib.sha256(seed).hexdigest()}
+        p_gpt=assemble_file(ROOT/'examples'/'local.asm')
+        p_claude=assemble_file(ROOT/'examples'/'sweep.asm')
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            for rd in (1,2):
+                for player,p in (('gpt',p_gpt),('claude',p_claude)):
+                    env=seal(make_payload('game-001',rd,player,p,'a note'),pub)
+                    event={'action':'created','issue':{'number':7},'comment':{
+                        'user':{'login':'author'},'body':to_issue_comment(env),
+                        'created_at':'2026-11-21T01:23:45Z','id':100+rd,
+                        'html_url':'https://github.com/example/example/issues/7#issuecomment-xyz'}}
+                    out=ingest_event(event,cfg,private,seed.hex(),root)
+                    self.assertEqual(out['status'],'accepted')
+            self.assertTrue((root/'results/game-001/round-01.json').exists())
+            self.assertTrue((root/'results/game-001/round-02.json').exists())
+            reveal=read_json(root/'reveal/game-001/all_rounds.json')
+            self.assertEqual(reveal['secret_seed_hex'],seed.hex())
+            self.assertEqual(len(reveal['rounds']),2)
+            self.assertEqual(reveal['rounds'][1]['players']['gpt']['payload']['note'],'a note')
+            self.assertEqual(verify_final_reveal(cfg,root)['status'],'verified')
+            leaderboard=read_json(root/'results/game-001/leaderboard.json')
+            self.assertEqual(leaderboard['completed_rounds'],2)
+
+if __name__=='__main__':unittest.main()
