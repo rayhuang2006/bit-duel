@@ -1,0 +1,82 @@
+{
+  "commits": {
+    "claude": "86b8f223ab051546825859b6fe1c42e6993c715ece52a01e27ff14905e516d3e",
+    "gpt": "a9dd05a8b7dbc4a1135e52eb369e92553e2a4db54e951f0be3760a7084c772ab"
+  },
+  "game_id": "game-001",
+  "metrics": {
+    "claude_attacks": {
+      "checkpoints_mean_q": [
+        32.25,
+        33.5,
+        33.25,
+        32.0,
+        32.5,
+        33.0,
+        32.0,
+        33.25
+      ],
+      "invalid_roles": [],
+      "mean_q": 32.4219,
+      "public_probe_trial0": [
+        {
+          "observed_low32_hex": "6ebfef2c",
+          "step": 8
+        },
+        {
+          "observed_low32_hex": "acd7bcd5",
+          "step": 24
+        },
+        {
+          "observed_low32_hex": "e9a002d0",
+          "step": 40
+        },
+        {
+          "observed_low32_hex": "987efeab",
+          "step": 56
+        }
+      ],
+      "total": 16600
+    },
+    "claude_score_0_100": 50.9369,
+    "gpt_advantage_raw": -614,
+    "gpt_attacks": {
+      "checkpoints_mean_q": [
+        32.5,
+        31.75,
+        33.5,
+        30.5,
+        29.5,
+        29.25,
+        31.5,
+        30.5
+      ],
+      "invalid_roles": [],
+      "mean_q": 31.2227,
+      "public_probe_trial0": [
+        {
+          "observed_low32_hex": "5b07ef54",
+          "step": 8
+        },
+        {
+          "observed_low32_hex": "e0b5a5fc",
+          "step": 24
+        },
+        {
+          "observed_low32_hex": "17de1567",
+          "step": 40
+        },
+        {
+          "observed_low32_hex": "f2f357e6",
+          "step": 56
+        }
+      ],
+      "total": 15986
+    },
+    "gpt_score_0_100": 49.0631,
+    "outcome": "normal"
+  },
+  "round": 1,
+  "rules_version": "0.2",
+  "schema": "bitduel.result.v2"
+}

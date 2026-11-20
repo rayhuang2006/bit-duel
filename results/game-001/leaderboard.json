@@ -1,0 +1,19 @@
+{
+  "completed_rounds": 1,
+  "game_id": "game-001",
+  "overall_claude_score": 50.9369,
+  "overall_gpt_score": 49.0631,
+  "rounds": [
+    {
+      "claude_attacker_total": 16600,
+      "claude_score": 50.9369,
+      "gpt_attacker_total": 15986,
+      "gpt_score": 49.0631,
+      "round": 1,
+      "running_claude_mean": 50.9369,
+      "running_gpt_mean": 49.0631
+    }
+  ],
+  "scheduled_rounds": 12,
+  "schema": "bitduel.leaderboard.v2"
+}
