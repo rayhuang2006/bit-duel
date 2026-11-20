@@ -1,6 +1,6 @@
 # Bit Duel — 1024-bit Mathematical Arena
 
-兩個 AI（例如 GPT 與 Claude）各以**單一最大 1024-bit 的程式**控制一個 `F_2^64` 線性動力系統。12 次策略修訂，每輪兩場交換攻守、每場 8 個初始條件、每個條件 64 個時間步。雙方只能見到少量公開回饋，程式與數學筆記於第十二輪後揭露。
+兩個 AI（例如 GPT 與 Claude）各以**單一最大 1024-bit 的程式**控制一個 `F_2^64` 線性動力系統。**game-001 已縮短為 3 輪試驗賽**（前兩輪已完成），每輪兩場交換攻守、每場 8 個初始條件、每個條件 64 個時間步。雙方只能見到少量公開回饋，程式與數學筆記於第三輪結束後揭露。
 
 > **這是可以執行的 v0.2 研究原型，不是已證明遊戲平衡的正式賽制。** `RULES.md` 為完整數學、計分與 VM 規則；`PROTOCOL.md` 為提交、密封和 GitHub 自動化規範。
 
@@ -70,7 +70,7 @@ python -m bitduel.cli submit \
 gh issue comment 1 --body-file /tmp/gpt_round01_comment.txt
 ```
 
-裁判在收到第二份合格的 sealed submission 時自動執行。結果只包含 score、每 8 步的平均 `q`、trial 0 的四筆 32-bit 公開觀測，以及承諾 hash；第 12 輪結束前不洩漏對方程式或研究筆記。每輪進度也會寫入 `results/game-001/leaderboard.json`。
+裁判在收到第二份合格的 sealed submission 時自動執行。結果只包含 score、每 8 步的平均 `q`、trial 0 的四筆 32-bit 公開觀測，以及承諾 hash；第 3 輪結束前不洩漏對方程式或研究筆記。每輪進度也會寫入 `results/game-001/leaderboard.json`。
 
 **重要：每輪程式不是普通 PR 的明文檔案！** 若直接提交 `strategy.asm` 到公開 repo，對方可立即讀到，失去盲打意義。
 
@@ -93,23 +93,23 @@ bit-duel/
 ├── config/game.json         # 初始化後產生 (public)
 ├── submissions/             # 加密收件紀錄
 ├── results/                 # 每輪有限回饋
-├── reveal/                  # 第 12 輪自動揭露
+├── reveal/                  # 第 3 輪自動揭露
 └── .secrets/                # 永不提交 (本機私鑰/seed)
 ```
 
-## 第 12 輪後：公開驗證
+## 第 3 輪後：公開驗證
 
-第 12 輪完結會產生 `reveal/game-001/all_rounds.json`，把它和完整 repo clone 到本機後執行：
+第 3 輪完結會產生 `reveal/game-001/all_rounds.json`，把它和完整 repo clone 到本機後執行：
 
 ```bash
 python -m bitduel.cli verify
 ```
 
-這個指令不需要裁判私鑰，會用公開 seed 重跑 12 輪，確認初始種子承諾、雙方程式承諾和每輪的完整計分數據都一致。
+這個指令不需要裁判私鑰，會用公開 seed 重跑 3 輪，確認初始種子承諾、雙方程式承諾和每輪的完整計分數據都一致。
 
 ## 兩件不能忽略的事
 
-**1. GitHub 自動裁判 ≠ ChatGPT/Claude 自動產生程式。** 這個 repo 已能收到兩份有效密封投稿時自動計分，但它不會自行喚醒兩個模型來寫新的策略。使用 ChatGPT/Claude 聊天訂閱的人可以手動帶結果去下一輪；要無人值守地生成 12 輪的模型策略，還需要額外整合可操作 GitHub 的代理或兩家模型的 API，且 API 計費與聊天訂閱通常分開。
+**1. GitHub 自動裁判 ≠ ChatGPT/Claude 自動產生程式。** 這個 repo 已能收到兩份有效密封投稿時自動計分，但它不會自行喚醒兩個模型來寫新的策略。使用 ChatGPT/Claude 聊天訂閱的人可以手動帶結果去下一輪；要無人值守地生成 3 輪的模型策略，還需要額外整合可操作 GitHub 的代理或兩家模型的 API，且 API 計費與聊天訂閱通常分開。
 
 **2. GitHub Actions 執行權限。** 此 repo 的 Issue 留言經解析、授權檢查和公鑰加密驗證後，**只在自製虛擬機中執行 128 bytes bytecode**，而不是 `eval` 不受信任的 Python 或 checkout PR 內提供的 script。要保護主分支、工作流程和裁判規則；擁有 repo 管理權限的人本質上是可信任裁判。請勿在有權限與 secrets 的工作流程 checkout 未經審核的 PR 程式。
 
@@ -119,7 +119,7 @@ v0.2 已包含數學引擎、VM、assembler、公鑰密封、Issue intake、回�
 
 ## 參賽模型提示詞
 
-`examples/AI_INSTRUCTIONS.md` 是可以直接發給 GPT 與 Claude 的共用指令，特別明確要求「研究筆記、可驗證推導、預測與修正」，而不是只輸出下一份程式。兩方收到完全相同的規則；各自的提交會在第十二輪後公布。
+`examples/AI_INSTRUCTIONS.md` 是可以直接發給 GPT 與 Claude 的共用指令，特別明確要求「研究筆記、可驗證推導、預測與修正」，而不是只輸出下一份程式。兩方收到完全相同的規則；各自的提交會在第三輪後公布。
 
 ## v0.2 規則修正
 
@@ -129,3 +129,7 @@ v0.2 已包含數學引擎、VM、assembler、公鑰密封、Issue intake、回�
 - GitHub 只需設定 **一個** `ARENA_MASTER_SEED_HEX` Secret，公鑰由同一種子導出。
 - 非投稿的 Issue 留言不再執行裁判工作；Round 1 開始前仍需確定 Secret 已在 GitHub 設好。
 - `BITDUEL_V1` 是密封封包協定版本，不需要因規則修改而改名字。
+
+## game-001 賽程更改（2026-11-21）
+
+主辦人在 Round 1、Round 2 已計分且 Round 3 尚未提交時，決定將本次 v0.2 試驗賽由 **12 輪縮短為 3 輪**。本次只修改 `config/game.json.rounds`、相關文件與排行榜顯示的總輪次，不修改數學模型、加密、公鑰、秘密 seed、VM、計分規則或既有回合結果。第三輪雙方投稿並計分後，裁判自動寫出 `reveal/game-001/all_rounds.json`，公開三輪共六份原始策略與研究筆記、master seed 及可驗證的提交資料。第四輪起不再接受投稿。**公開 master seed 後不得沿用於未來 v0.3 遊戲；新的遊戲必須初始化新 seed 和公鑰。**

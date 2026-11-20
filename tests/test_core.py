@@ -120,7 +120,7 @@ class SealingTests(unittest.TestCase):
     def test_issue_ingestion_and_reveal(self):
         seed=bytes(range(32))
         pub,private=referee_keys_from_seed(seed)
-        cfg={'game_id':'game-001','rounds':2,'submission_issue':7,
+        cfg={'game_id':'game-001','rounds':3,'submission_issue':7,
              'allowed_submitters':{'gpt':['author'],'claude':['author']},
              'schema':'bitduel.config.v2','rules_version':'0.2',
              'steps':64,'trials':8,'public_key_b64':pub,
@@ -129,7 +129,7 @@ class SealingTests(unittest.TestCase):
         p_claude=assemble_file(ROOT/'examples'/'sweep.asm')
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
-            for rd in (1,2):
+            for rd in (1,2,3):
                 for player,p in (('gpt',p_gpt),('claude',p_claude)):
                     env=seal(make_payload('game-001',rd,player,p,'a note'),pub)
                     event={'action':'created','issue':{'number':7},'comment':{
@@ -138,16 +138,22 @@ class SealingTests(unittest.TestCase):
                         'html_url':'https://github.com/example/example/issues/7#issuecomment-xyz'}}
                     out=ingest_event(event,cfg,private,seed.hex(),root)
                     self.assertEqual(out['status'],'accepted')
+                if rd < 3:
+                    self.assertFalse((root/'reveal/game-001/all_rounds.json').exists(), 'reveal must stay sealed until round 3')
             self.assertTrue((root/'results/game-001/round-01.json').exists())
             self.assertTrue((root/'results/game-001/round-02.json').exists())
             reveal=read_json(root/'reveal/game-001/all_rounds.json')
             self.assertEqual(reveal['secret_seed_hex'],seed.hex())
-            self.assertEqual(len(reveal['rounds']),2)
+            self.assertEqual(len(reveal['rounds']),3)
             self.assertEqual(reveal['rounds'][1]['players']['gpt']['payload']['note'],'a note')
             self.assertEqual(verify_final_reveal(cfg,root)['status'],'verified')
             leaderboard=read_json(root/'results/game-001/leaderboard.json')
-            self.assertEqual(leaderboard['completed_rounds'],2)
+            self.assertEqual(leaderboard['completed_rounds'],3)
+            self.assertEqual(leaderboard['scheduled_rounds'],3)
+            self.assertEqual(reconcile(cfg,private,seed.hex(),root)['status'],'finished')
+            self.assertFalse((root/'results/game-001/round-04.json').exists())
             self.assertEqual(read_json(root/'results/game-001/round-01.json')['rules_version'],'0.2')
+            self.assertTrue((root/'results/game-001/round-03.json').exists())
             self.assertNotEqual(read_json(root/'results/game-001/round-01.json')['metrics'], read_json(root/'results/game-001/round-02.json')['metrics'])
 
 if __name__=='__main__':unittest.main()

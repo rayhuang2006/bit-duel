@@ -154,7 +154,7 @@ def ingest_event(event:dict, config:dict, private_key_b64:str, seed_hex:str, roo
 
 
 def verify_final_reveal(config:dict, root:Path=ROOT) -> dict:
-    """Public, keyless post-match verifier of all 12 games and commitments."""
+    """Public, keyless post-match verifier of scheduled rounds and commitments."""
     from .sealed import canonical, load_program
     validate_config(config)
     game=config['game_id']

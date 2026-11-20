@@ -9,7 +9,7 @@
   },
   "game_id": "game-001",
   "public_key_b64": "EGLmB4dtvaua+r5oirXmaOuVqnOHNz73FSfv5JkDkVc=",
-  "rounds": 12,
+  "rounds": 3,
   "rules_version": "0.2",
   "schema": "bitduel.config.v2",
   "seed_sha256": "c39fbe3b60bc71e5123a03c29f51aef88614930dde63511ad1303e92b9f353d7",

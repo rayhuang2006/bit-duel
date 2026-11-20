@@ -23,6 +23,6 @@
       "running_gpt_mean": 49.0174
     }
   ],
-  "scheduled_rounds": 12,
+  "scheduled_rounds": 3,
   "schema": "bitduel.leaderboard.v2"
 }
