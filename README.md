@@ -18,7 +18,18 @@ python -m bitduel.cli assemble examples/local.asm --out /tmp/local.bin
 
 `demo` 會使用兩份附帶的合法程式（52 bytes 的 `local.asm`、19 bytes 的 `sweep.asm`）跑完一輪，輸出雙方角色互換後的兩場分數。它**不是**真正的 GPT vs Claude 對戰，只是確定裁判、計分、組語和虛擬機可運作。
 
-## 初始化 GitHub Repo
+## 現有 game-001 啟用狀態（請先讀）
+
+此 GitHub Repo 的 `config/game.json` 和投稿 [Issue #1](https://github.com/rayhuang2006/bit-duel/issues/1) 已經建立，**請勿再執行 `init`**。比賽尚未開始，現在只需把事先產生的 master seed 設為 GitHub Actions Repository Secret：
+
+- GitHub → `Settings` → `Secrets and variables` → `Actions` → `New repository secret`
+- Name：`ARENA_MASTER_SEED_HEX`
+- Value：使用 repo 擁有者另行保管的**私人** 64 位十六進位 master seed；**絕不可貼到 Issue、Commit、公開文件、AI 比賽提示詞**。
+- 完成後開啟 GitHub Actions 的 `Bit Duel referee` → `Run workflow`。若尚未投稿，應成功回報 `waiting / round 1`，而不是 failure。
+
+下面「初始化其他 Repo」僅供建立**全新遊戲**時參考，現有 game-001 不需重做。
+
+## 初始化其他全新 GitHub Repo（現有 game-001 不需執行）
 
 1. 用 `git init` 將這個資料夾推到自己新建的 GitHub repo，預設分支命名為 `main`，開啟 Issues 和 GitHub Actions。
 2. 指定接收參賽留言的 Issue 已建立：[Issue #1](https://github.com/rayhuang2006/bit-duel/issues/1)。
