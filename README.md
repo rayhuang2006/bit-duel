@@ -1,8 +1,8 @@
 # Bit Duel — 1024-bit Mathematical Arena
 
-兩個 AI（例如 GPT 與 Claude）各以**單一最大 1024-bit 的程式**控制一個 `F_2^64` 線性動力系統。12 次策略修訂，每輪兩場交換攻守、每場 3 個初始條件、每個條件 64 個時間步。雙方只能見到少量公開回饋，程式與數學筆記於第十二輪後揭露。
+兩個 AI（例如 GPT 與 Claude）各以**單一最大 1024-bit 的程式**控制一個 `F_2^64` 線性動力系統。12 次策略修訂，每輪兩場交換攻守、每場 8 個初始條件、每個條件 64 個時間步。雙方只能見到少量公開回饋，程式與數學筆記於第十二輪後揭露。
 
-> **這是可以執行的 v0.1 研究原型，不是已證明遊戲平衡的正式賽制。** `RULES.md` 為完整數學、計分與 VM 規則；`PROTOCOL.md` 為提交、密封和 GitHub 自動化規範。
+> **這是可以執行的 v0.2 研究原型，不是已證明遊戲平衡的正式賽制。** `RULES.md` 為完整數學、計分與 VM 規則；`PROTOCOL.md` 為提交、密封和 GitHub 自動化規範。
 
 ## 先試試本機執行（不需 GitHub 帳號或 API key）
 
@@ -21,17 +21,15 @@ python -m bitduel.cli assemble examples/local.asm --out /tmp/local.bin
 ## 初始化 GitHub Repo
 
 1. 用 `git init` 將這個資料夾推到自己新建的 GitHub repo，預設分支命名為 `main`，開啟 Issues 和 GitHub Actions。
-2. 在 GitHub 開一個指定接收參賽留言的 Issue（例如 #1）。
+2. 指定接收參賽留言的 Issue 已建立：[Issue #1](https://github.com/rayhuang2006/bit-duel/issues/1)。
 3. 在本機執行：
 
 ```bash
-python -m bitduel.cli init --game game-001 --user YOUR_GITHUB_USERNAME --issue 1
+python -m bitduel.cli init --game game-001 --user rayhuang2006 --issue 1
 ```
 
 4. 這會建立：`config/game.json`（可公開）和 `.secrets/arena.env`（**不可提交**，已被 `.gitignore` 排除）。
-5. 在 GitHub `Settings → Secrets and variables → Actions` 設定下列兩個 Repository Secrets，使用 `.secrets/arena.env` 中對應的值（不要把 `.env` 檔案上傳）：
-   - `ARENA_X25519_PRIVATE_KEY`
-   - `ARENA_SEED_HEX`
+5. 在 GitHub `Settings → Secrets and variables → Actions` 設定**唯一一個** Repository Secret：`ARENA_MASTER_SEED_HEX`。值在 `.secrets/arena.env` 裡；**絕不能把這個檔案提交到 Repo**。
 6. 將 `config/game.json` 推上 GitHub。用 branch protection / ruleset 保護 `main` 上的 `bitduel/`、`.github/workflows/`、`config/` 等裁判關鍵檔案；盡量用專用 bot 授權，並限制誰能觸發提交。
 7. 在 Issue #1 留下兩位 AI 的 **sealed submission**；完成雙方後 GitHub Actions 自動計分並推送 `results/game-001/round-01.json`。無需人工合併 PR。
 
@@ -106,8 +104,17 @@ python -m bitduel.cli verify
 
 ## 進度與下一步
 
-v0.1 已包含數學引擎、VM、assembler、公鑰密封、Issue intake、回合裁判、有限回饋、最終 reveal、GitHub Actions 與測試。尚未包含 AI API/agent 自動寫策略，亦未完成嚴格的平衡性研究；v1.0 前先用固定基準、未見初始條件及更多對手策略做驗證。
+v0.2 已包含數學引擎、VM、assembler、公鑰密封、Issue intake、回合裁判、有限回饋、最終 reveal、GitHub Actions 與測試。尚未包含 AI API/agent 自動寫策略，亦未完成嚴格的平衡性研究；正式比賽前先用固定基準、未見初始條件及更多對手策略做驗證。
 
 ## 參賽模型提示詞
 
 `examples/AI_INSTRUCTIONS.md` 是可以直接發給 GPT 與 Claude 的共用指令，特別明確要求「研究筆記、可驗證推導、預測與修正」，而不是只輸出下一份程式。兩方收到完全相同的規則；各自的提交會在第十二輪後公布。
+
+## v0.2 規則修正
+
+- `L=I+R+R^3`、`H=I+R` 與每步 4-bit 行動限制不變。
+- 每一輪以 master seed + 輪次重新導出 8 組初始狀態；**同輪交換攻守使用相同的 8 組**。
+- 每場總分最大 `8 × 64 × 64 = 32768`；0–100 配分的分母同步更新。
+- GitHub 只需設定 **一個** `ARENA_MASTER_SEED_HEX` Secret，公鑰由同一種子導出。
+- 非投稿的 Issue 留言不再執行裁判工作；Round 1 開始前仍需確定 Secret 已在 GitHub 設好。
+- `BITDUEL_V1` 是密封封包協定版本，不需要因規則修改而改名字。

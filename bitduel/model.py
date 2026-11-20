@@ -3,7 +3,7 @@ import hashlib
 from .vm import MASK, execute, decode, VMError
 
 STEPS = 64
-TRIALS = 3
+TRIALS = 8
 OBS_MASK = (1 << 32) - 1
 ROLES = {'attacker':0, 'defender':1}
 
@@ -25,20 +25,29 @@ def observe(x: int) -> int:
     return x & OBS_MASK
 
 
-def initial_state(game_id: str, seed: bytes, trial: int) -> int:
-    # Secret initial conditions; same three conditions every round.
-    material = b'bitduel/v0.1/initial|' + len(game_id.encode()).to_bytes(2, 'big') + game_id.encode() + b'|' + trial.to_bytes(2, 'big') + seed
+def initial_state(game_id: str, seed: bytes, round_number: int, trial: int) -> int:
+    """Domain-separated round/trial initial state derived from one committed seed.
+
+    Players see the SHA-256 commitment to the master seed, not the seed.
+    The same (round, trial) is used in both attacking legs for fairness.
+    """
+    if not 1 <= round_number <= 12 or not 0 <= trial < TRIALS or len(seed) != 32:
+        raise ValueError('invalid initial state parameters')
+    name = game_id.encode('utf-8')
+    material = (b'bitduel/v0.2/initial\x00' + len(name).to_bytes(2,'big') + name
+                + round_number.to_bytes(2,'big') + trial.to_bytes(2,'big') + seed)
     return int.from_bytes(hashlib.sha256(material).digest()[:8], 'little')
 
 
-def run_leg(attacker: bytes, defender: bytes, game_id: str, seed: bytes) -> dict:
+def run_leg(attacker: bytes, defender: bytes, game_id: str, seed: bytes,
+            round_number: int) -> dict:
     p_att = decode(attacker); p_def = decode(defender)
     total = 0
     checkpoints = [0] * 8
     errors = set()
     public_probe = []  # Fixed, sparse observation samples from trial 0 only.
     for trial in range(TRIALS):
-        x = initial_state(game_id, seed, trial)
+        x = initial_state(game_id, seed, round_number, trial)
         mem_a = mem_d = 0
         for t in range(STEPS):
             y = observe(x)
@@ -65,10 +74,11 @@ def run_leg(attacker: bytes, defender: bytes, game_id: str, seed: bytes) -> dict
             'invalid_roles': sorted(errors)}
 
 
-def evaluate(gpt_program: bytes, claude_program: bytes, game_id: str, seed: bytes) -> dict:
+def evaluate(gpt_program: bytes, claude_program: bytes, game_id: str, seed: bytes,
+             round_number: int) -> dict:
     # Both programs run one attacking leg and one defending leg.
-    gc = run_leg(gpt_program, claude_program, game_id, seed)
-    cg = run_leg(claude_program, gpt_program, game_id, seed)
+    gc = run_leg(gpt_program, claude_program, game_id, seed, round_number)
+    cg = run_leg(claude_program, gpt_program, game_id, seed, round_number)
     bad_gpt = 'attacker' in gc['invalid_roles'] or 'defender' in cg['invalid_roles']
     bad_claude = 'defender' in gc['invalid_roles'] or 'attacker' in cg['invalid_roles']
     if bad_gpt and bad_claude:

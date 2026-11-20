@@ -7,25 +7,26 @@ import os
 import secrets
 from pathlib import Path
 from .asm import assemble_file
-from .model import evaluate
+from .model import evaluate, STEPS, TRIALS
 from .referee import ROOT, read_json, write_json, ingest_event, reconcile, verify_final_reveal
-from .sealed import create_keys, make_payload, seal, to_issue_comment
+from .sealed import referee_keys_from_seed, make_payload, seal, to_issue_comment
 from .vm import decode
 
 
 def _secrets():
-    # GitHub Actions uses secret env vars; local use .secrets/arena.env.
+    # Only one GitHub Actions secret; derives both the private key and seed.
     filename=ROOT/'.secrets'/'arena.env'
     if filename.exists():
         for line in filename.read_text().splitlines():
             if '=' in line and not line.startswith('#'):
                 k,v=line.split('=',1)
                 if k not in os.environ:os.environ[k]=v
-    key=os.environ.get('ARENA_X25519_PRIVATE_KEY','')
-    seed=os.environ.get('ARENA_SEED_HEX','')
-    if not key or not seed:
-        raise ValueError('Missing ARENA_X25519_PRIVATE_KEY or ARENA_SEED_HEX secret')
-    return key,seed
+    seed=os.environ.get('ARENA_MASTER_SEED_HEX','')
+    if not seed:
+        raise ValueError('Missing ARENA_MASTER_SEED_HEX GitHub Actions secret')
+    raw=bytes.fromhex(seed)
+    _, private=referee_keys_from_seed(raw)
+    return private, seed
 
 
 def main():
@@ -52,19 +53,19 @@ def main():
         config_path=ROOT/'config'/'game.json'
         if config_path.exists() or (ROOT/'.secrets'/'arena.env').exists():
             raise ValueError('already initialized: refusing to overwrite secrets')
-        public, private=create_keys()
         secret=secrets.token_bytes(32)
-        config={'schema':'bitduel.config.v1','game_id':args.game,'rules_version':'0.1',
-                'rounds':12,'steps':64,'trials':3,'submission_issue':args.issue,
+        public, _=referee_keys_from_seed(secret)
+        config={'schema':'bitduel.config.v2','game_id':args.game,'rules_version':'0.2',
+                'rounds':12,'steps':STEPS,'trials':TRIALS,'submission_issue':args.issue,
                 'allowed_submitters':{'gpt':[args.user],'claude':[args.user]},
                 'public_key_b64':public,'seed_sha256':hashlib.sha256(secret).hexdigest()}
         write_json(config_path,config)
         sec=ROOT/'.secrets'/'arena.env';sec.parent.mkdir(exist_ok=True)
-        sec.write_text(f'ARENA_X25519_PRIVATE_KEY={private}\nARENA_SEED_HEX={secret.hex()}\n')
+        sec.write_text(f'ARENA_MASTER_SEED_HEX={secret.hex()}\n')
         try:sec.chmod(0o600)
         except OSError:pass
         print('Created config/game.json and .secrets/arena.env (DO NOT COMMIT THE SECRET).')
-        print('Set the two arena secrets as GitHub Actions repository secrets.')
+        print('Set the single ARENA_MASTER_SEED_HEX value in GitHub Actions repository secrets.')
     elif args.cmd=='assemble':
         code=assemble_file(args.source)
         Path(args.out).parent.mkdir(parents=True,exist_ok=True)
@@ -76,7 +77,7 @@ def main():
         a=load(args.gpt);b=load(args.claude)
         print(f'gpt program {len(a)} bytes, claude program {len(b)} bytes')
         seed=bytes.fromhex('0123456789abcdef'*4)
-        print(json.dumps(evaluate(a,b,'demo',seed),indent=2))
+        print(json.dumps(evaluate(a,b,'demo',seed,1),indent=2))
     elif args.cmd=='submit':
         config=read_json(ROOT/'config'/'game.json')
         game=args.game or config['game_id']

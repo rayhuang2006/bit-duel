@@ -9,7 +9,7 @@ from pathlib import Path
 from bitduel.asm import assemble, assemble_file
 from bitduel.model import evolve, objective, rot, initial_state, evaluate
 from bitduel.vm import decode, execute, VMError
-from bitduel.sealed import create_keys, make_payload, seal, open_sealed, load_program, to_issue_comment
+from bitduel.sealed import create_keys, referee_keys_from_seed, make_payload, seal, open_sealed, load_program, to_issue_comment
 from bitduel.referee import ingest_event, reconcile, read_json, verify_final_reveal
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +20,16 @@ class MathTests(unittest.TestCase):
             state=x
             for _ in range(64):state=evolve(state,0,0)
             self.assertEqual(state,x)
+    def test_initial_states_change_each_round(self):
+        seed = bytes(range(32))
+        r1 = [initial_state('game-001', seed, 1, j) for j in range(8)]
+        r2 = [initial_state('game-001', seed, 2, j) for j in range(8)]
+        self.assertEqual(len(set(r1)), 8)
+        self.assertEqual(len(set(r2)), 8)
+        self.assertNotEqual(r1, r2)
+        self.assertEqual(r1[0], initial_state('game-001', seed, 1, 0))
+        with self.assertRaises(ValueError):
+            initial_state('game-001', seed, 13, 0)
     def test_linearity(self):
         rng=random.Random(15)
         for _ in range(100):
@@ -56,15 +66,15 @@ class VMTests(unittest.TestCase):
         with self.assertRaises(VMError):execute(infinite,0,0,0)
     def test_equal_programs_draw(self):
         p=assemble_file(ROOT/'examples'/'local.asm')
-        r=evaluate(p,p,'demo',bytes(32))
+        r=evaluate(p,p,'demo',bytes(32),1)
         self.assertEqual(r['gpt_score_0_100'],50.0)
         self.assertEqual(r['gpt_advantage_raw'],0)
     def test_role_swap(self):
         a=assemble_file(ROOT/'examples'/'local.asm')
         b=assemble_file(ROOT/'examples'/'sweep.asm')
         seed=bytes(range(32))
-        one=evaluate(a,b,'demo',seed)
-        two=evaluate(b,a,'demo',seed)
+        one=evaluate(a,b,'demo',seed,1)
+        two=evaluate(b,a,'demo',seed,1)
         self.assertEqual(one['gpt_score_0_100']+two['gpt_score_0_100'],100)
 
 class SealingTests(unittest.TestCase):
@@ -78,11 +88,19 @@ class SealingTests(unittest.TestCase):
         env['sha256']='0'*64
         with self.assertRaises(Exception):open_sealed(env,private)
 
-    def test_issue_ingestion_and_reveal(self):
-        pub,private=create_keys()
+    def test_referee_key_deterministic(self):
         seed=bytes(range(32))
+        self.assertEqual(referee_keys_from_seed(seed), referee_keys_from_seed(seed))
+        self.assertNotEqual(referee_keys_from_seed(seed)[0], referee_keys_from_seed(bytes(32))[0])
+        with self.assertRaises(ValueError): referee_keys_from_seed(bytes(31))
+
+    def test_issue_ingestion_and_reveal(self):
+        seed=bytes(range(32))
+        pub,private=referee_keys_from_seed(seed)
         cfg={'game_id':'game-001','rounds':2,'submission_issue':7,
              'allowed_submitters':{'gpt':['author'],'claude':['author']},
+             'schema':'bitduel.config.v2','rules_version':'0.2',
+             'steps':64,'trials':8,'public_key_b64':pub,
              'seed_sha256':hashlib.sha256(seed).hexdigest()}
         p_gpt=assemble_file(ROOT/'examples'/'local.asm')
         p_claude=assemble_file(ROOT/'examples'/'sweep.asm')
@@ -106,5 +124,7 @@ class SealingTests(unittest.TestCase):
             self.assertEqual(verify_final_reveal(cfg,root)['status'],'verified')
             leaderboard=read_json(root/'results/game-001/leaderboard.json')
             self.assertEqual(leaderboard['completed_rounds'],2)
+            self.assertEqual(read_json(root/'results/game-001/round-01.json')['rules_version'],'0.2')
+            self.assertNotEqual(read_json(root/'results/game-001/round-01.json')['metrics'], read_json(root/'results/game-001/round-02.json')['metrics'])
 
 if __name__=='__main__':unittest.main()

@@ -1,0 +1,19 @@
+{
+  "allowed_submitters": {
+    "claude": [
+      "rayhuang2006"
+    ],
+    "gpt": [
+      "rayhuang2006"
+    ]
+  },
+  "game_id": "game-001",
+  "public_key_b64": "EGLmB4dtvaua+r5oirXmaOuVqnOHNz73FSfv5JkDkVc=",
+  "rounds": 12,
+  "rules_version": "0.2",
+  "schema": "bitduel.config.v2",
+  "seed_sha256": "c39fbe3b60bc71e5123a03c29f51aef88614930dde63511ad1303e92b9f353d7",
+  "steps": 64,
+  "submission_issue": 1,
+  "trials": 8
+}

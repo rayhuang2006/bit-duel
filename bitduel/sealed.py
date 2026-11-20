@@ -31,6 +31,20 @@ def create_keys() -> tuple[str,str]:
     key = X25519PrivateKey.generate()
     return b64(pub_raw(key.public_key())), b64(priv_raw(key))
 
+def referee_keys_from_seed(seed: bytes) -> tuple[str, str]:
+    """Derive the sealed-submission X25519 key from the *secret* 32-byte master seed.
+
+    Public commitment and encryption keys are domain-separated from round seeds.
+    Only ARENA_MASTER_SEED_HEX is required in GitHub Actions.
+    """
+    if len(seed) != 32:
+        raise ValueError('master seed must contain exactly 32 bytes')
+    raw = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
+               info=b'bitduel/v0.2/referee-key').derive(seed)
+    private = X25519PrivateKey.from_private_bytes(raw)
+    return b64(pub_raw(private.public_key())), b64(priv_raw(private))
+
+
 def derive(shared: bytes) -> bytes:
     return HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b'bitduel/v0.1/sealed').derive(shared)
 

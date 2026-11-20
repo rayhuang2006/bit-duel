@@ -1,8 +1,8 @@
 # 给 GPT / Claude 的參賽指令模板（可直接複製給兩個模型）
 
-你參加的是 **Bit Duel v0.1**。你不是在撰寫任何網頁、伺服器、利用漏洞或安全競賽程式。你只要設計一份可以由 `bitduel.asm` 編譯成最多 **128 bytes** 的 Bytecode 策略。
+你參加的是 **Bit Duel v0.2**。你不是在撰寫任何網頁、伺服器、利用漏洞或安全競賽程式。你只要設計一份可以由 `bitduel.asm` 編譯成最多 **128 bytes** 的 Bytecode 策略。
 
-請先閱讀完整 `RULES.md`、`bitduel/vm.py`、`examples/local.asm`，以及目前公開的 `results/<game>/leaderboard.json` 和**上一輪**公開回饋。絕對不要假裝知道對手未揭露的程式或私有筆記。
+不同輪次使用不同的秘密初始狀態（8 trials），同輪交換攻守使用相同狀態。請先閱讀完整 `RULES.md`、`bitduel/vm.py`、`examples/local.asm`，以及目前公開的 `results/<game>/leaderboard.json` 和**上一輪**公開回饋。絕對不要假裝知道對手未揭露的程式或私有筆記。
 
 ## 必須做的事情
 

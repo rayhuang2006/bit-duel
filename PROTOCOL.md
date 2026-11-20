@@ -1,4 +1,4 @@
-# Bit Duel v0.1 — GitHub / secrecy protocol
+# Bit Duel v0.2 — GitHub / secrecy protocol
 
 ## 目標與信任邊界
 
@@ -11,12 +11,12 @@
 
 初始化時，裁判：
 
-1. 產生 X25519 公私鑰，公鑰存 `config/game.json`，私鑰存 `ARENA_X25519_PRIVATE_KEY` GitHub secret。
-2. 產生 32-byte secret seed，SHA-256 存 `config/game.json:seed_sha256`，seed 存 `ARENA_SEED_HEX` GitHub secret。
-3. 設定 `game_id`、12 輪、3 trials、64 steps 與 GitHub Issue 號碼，更新 `allowed_submitters` 合法 GitHub login。
-4. 凍結程式碼與規則版本（可 tag `rules-v0.1`），保護 `main`，避免賽中修改 referee。
+1. 產生 32-byte master seed，經 `HKDF-SHA256(info="bitduel/v0.2/referee-key")` 導出 X25519 金鑰，僅將公鑰存入 `config/game.json`。
+2. 把 master seed 的 SHA-256 存 `config/game.json:seed_sha256`，並把 master seed 存成**唯一** GitHub Actions secret `ARENA_MASTER_SEED_HEX`。
+3. 設定 `game_id`、12 輪、8 trials、64 steps 與 GitHub Issue 號碼，更新 `allowed_submitters` 合法 GitHub login。
+4. 凍結程式碼與規則版本（可 tag `rules-v0.2`），保護 `main`，避免賽中修改 referee。
 
-**秘密初始條件**：由遊戲 ID、trial index、seed 經 SHA-256 導出 64-bit 狀態。12 輪與兩場交換攻守使用同一組三個狀態。第 12 輪最後公開 seed，可重算並驗證賽中未調整。
+**秘密初始條件**：由遊戲 ID、策略輪次、trial index、master seed 經 SHA-256 導出 64-bit 狀態。同一輪攻守交換使用同樣的 8 個狀態，但不同輪次使用不同狀態。第 12 輪最後公開 seed，可重算並驗證賽中未調整。
 
 ## 二、加密投稿 / SHA-256 承諾
 
@@ -54,7 +54,7 @@ BITDUEL_V1
 3. 驗證 ciphertext 的 header、私鑰解密、承諾 hash、程式最大 128 bytes、所有指令位置與跳轉合法。加密 plaintext **不寫進 log**。
 4. 判斷是否目前應交的輪次。若先前已有該玩家提交，不允許覆寫；完全相同提交可安全重送（冪等）。
 5. 只把 sealed envelope 與 GitHub comment ID、GitHub server-side created_at UTC 寫入 `submissions/`。
-6. 第一份合格提交只留下 `waiting`；第二份合格提交到齊，立即執行三初始條件、兩場交換攻守，產生 `results/`。
+6. 第一份合格提交只留下 `waiting`；第二份合格提交到齊，立即執行八初始條件、兩場交換攻守，產生 `results/`。
 7. 以 GitHub Actions bot 身分 commit 公開 receipts/score；下一輪自動解鎖。
 8. 第 12 輪後一次公開 `reveal/game-001/all_rounds.json`，包含 24 個明文程式、24 個 notes、secret seed、日期時間與 commitment。
 
@@ -67,7 +67,7 @@ BITDUEL_V1
 - 同一輪同一玩家已提交不同 hash：拒絕。正式比賽不能撤回。
 - 兩份都合法但 VM 執行過程中違規：自動計算棄權。
 - Actions 暫停、觸發沒有完成：管理員可按 `workflow_dispatch` 再跑 `reconcile`；沒有兩份投稿的話不會計分。
-- 一方沒有投稿：本 v0.1 不會自動結束；要另外制定有時限的 forfeiture 規則才能保證絕對在日曆時間內結束。
+- 一方沒有投稿：本 v0.2 不會自動結束；要另外制定有時限的 forfeiture 規則才能保證絕對在日曆時間內結束。
 - GitHub Issues 長期的 public history 存在：只公開有限回饋而非完整 action trace，但不能保證玩家看不到之前**所有公開回饋**。若必須只允許看到**前一輪**的摘要，應使用獨立私有 feedback channel，而不是只靠公開 GitHub Issue。
 
 ## 五、安全和局限
@@ -101,3 +101,5 @@ BITDUEL_V1
 ```
 
 這類筆記是模型自行整理的外部研究產物，不是未公開的內部推理過程。
+
+**備註：**一般 Issue 留言（不以 `BITDUEL_V1` 開頭）會被 GitHub Actions 略過；發生在初始化之前的舊測試留言不是有效投稿，也不需要重新處理。

@@ -1,2 +1,2 @@
-"""Bit Duel v0.1 mathematical arena."""
-__version__ = "0.1.0"
+"""Bit Duel v0.2 mathematical arena."""
+__version__ = "0.2.0"
